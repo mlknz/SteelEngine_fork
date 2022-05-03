@@ -30,11 +30,14 @@
 
 layout(constant_id = 0) const uint SAMPLE_COUNT = 1;
 layout(constant_id = 1) const uint MATERIAL_COUNT = 256;
-layout(constant_id = 2) const float POINT_LIGHT_RADIUS = 0.05;
 
 #if ACCUMULATION
 layout(push_constant) uniform PushConstants{
     uint accumIndex;
+    float directLightIntensity;
+    float directLightRotation;
+    float pointLightsIntensity;
+    float pointLightsRadius;
 };
 #endif
 
@@ -138,7 +141,7 @@ void UnpackMaterial(MaterialRT mat, inout Surface surface)
     surface.metallic = DEBUG_METALLIC;
 #endif
 
-    surface.emission = mat.emissionFactor.rgb;
+    surface.emission = mat.emissionFactor.rgb * pointLightsIntensity;
     if (mat.emissionTexture >= 0)
     {
         surface.emission *= texture(textures[nonuniformEXT(mat.emissionTexture)], payload.texCoord).rgb;
@@ -240,7 +243,7 @@ float EstimatePointLight(uint index, Surface surface, vec3 p, vec3 wo)
 
     const float NoL = max(dot(N, L), 0.0);
 
-    const float luminance = Luminance(pointLights[index].color.rgb * 4.0);
+    const float luminance = Luminance(pointLights[index].color.rgb * pointLightsIntensity);
 
     return luminance * NoL / distanceSquared;
 }
@@ -312,6 +315,8 @@ vec3 CaclualteHemisphereDistortion(vec3 n, inout uvec2 seed)
     return offset;
 }
 
+#define DEFAULT_POINT_LIGHT_RADIUS 0.05
+
 vec3 PointLighting(Surface surface, vec3 p, vec3 wo, inout uvec2 seed)
 {
     float lightPdf;
@@ -324,7 +329,7 @@ vec3 PointLighting(Surface surface, vec3 p, vec3 wo, inout uvec2 seed)
         vec3 direction = pointLight.position.xyz - p;
         
         const vec3 distortion = CaclualteHemisphereDistortion(-direction, seed);
-        direction += distortion * POINT_LIGHT_RADIUS;
+        direction += distortion * DEFAULT_POINT_LIGHT_RADIUS * pointLightsRadius;
 
         const float distanceSquared = dot(direction, direction);
         const float attenuation = Rcp(distanceSquared);
@@ -344,7 +349,7 @@ vec3 PointLighting(Surface surface, vec3 p, vec3 wo, inout uvec2 seed)
         {
             const vec3 brdf = EvaluateBRDF(surface, wo, wi, wh);
 
-            return brdf * CosThetaTangent(wi) * pointLight.color.rgb * 4.0 * attenuation / lightPdf;
+            return brdf * CosThetaTangent(wi) * pointLight.color.rgb * pointLightsIntensity * attenuation / lightPdf;
         }
     }
     
@@ -366,7 +371,16 @@ vec3 CaclualteDiskDistortion(vec3 n, inout uvec2 seed)
 
 vec3 DirectLighting(Surface surface, vec3 p, vec3 wo, inout uvec2 seed)
 {
-    vec3 direction = normalize(-directLight.direction.xyz);
+    const float sinTheta = sin(directLightRotation);
+    const float cosTheta = cos(directLightRotation);
+
+    const mat3x3 rotation = mat3x3(
+        cosTheta, 0.0, sinTheta,
+        0.0, 1.0, 0.0, 
+        -sinTheta, 0.0, cosTheta);
+
+    vec3 direction = rotation * normalize(-directLight.direction.xyz);
+
     direction += CaclualteDiskDistortion(direction, seed) * 0.0047;
 
     Ray ray;
@@ -382,7 +396,7 @@ vec3 DirectLighting(Surface surface, vec3 p, vec3 wo, inout uvec2 seed)
 
         const vec3 brdf = EvaluateBRDF(surface, wo, wi, wh);
 
-        return brdf * CosThetaTangent(wi) * directLight.color.rgb;
+        return brdf * CosThetaTangent(wi) * directLight.color.rgb * directLightIntensity;
     }
 
     return vec3(0.0);
@@ -435,7 +449,7 @@ void main()
         #if POINT_LIGHT_COUNT > 0
             if (bounceCount == 0 && IsPointLightHit())
             {
-                irradiance = pointLightPayload.color * 4.0;
+                irradiance = pointLightPayload.color * pointLightsIntensity;
                 break;
             }
         #endif

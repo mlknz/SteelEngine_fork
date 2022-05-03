@@ -31,6 +31,8 @@ public:
 
     void Process(float deltaSeconds) override;
 
+    void SetCamera(Camera* camera_);
+
 private:
     enum class MovementValue
     {

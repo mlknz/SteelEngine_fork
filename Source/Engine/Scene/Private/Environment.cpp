@@ -1,9 +1,11 @@
 #include "Engine/Scene/Environment.hpp"
 
+#include "Engine/Engine.hpp"
 #include "Engine/Render/RenderContext.hpp"
 #include "Engine/Render/Vulkan/VulkanContext.hpp"
 #include "Engine/Scene/DirectLighting.hpp"
 #include "Engine/Scene/ImageBasedLighting.hpp"
+#include "Engine/Filesystem/Filesystem.hpp"
 
 namespace Details
 {
@@ -32,15 +34,40 @@ namespace Details
 
         return VulkanContext::textureManager->CreateCubeTexture(panoramaTexture, environmentExtent);
     }
+
+    static std::vector<Environment::Data> CreateDemoEnvironments(const std::vector<Filepath>& paths)
+    {
+        std::vector<Environment::Data> environments;
+        
+        for (const auto& path : paths)
+        {
+            const Texture panoramaTexture = VulkanContext::textureManager->CreateTexture(path);
+
+            const Environment::Data environment{
+                Details::CreateEnvironmentTexture(panoramaTexture),
+                RenderContext::directLighting->RetrieveDirectLight(panoramaTexture),
+                path.GetBaseName()
+            };
+
+            environments.push_back(environment);
+
+            VulkanContext::textureManager->DestroyTexture(panoramaTexture);
+        }
+
+        return environments;
+    }
 }
 
-Environment::Environment(const Filepath& path)
+Environment::Environment(const std::vector<Filepath>& paths)
 {
-    const Texture panoramaTexture = VulkanContext::textureManager->CreateTexture(path);
+    const Texture panoramaTexture = VulkanContext::textureManager->CreateTexture(paths.front());
 
     texture = Details::CreateEnvironmentTexture(panoramaTexture);
     directLight = RenderContext::directLighting->RetrieveDirectLight(panoramaTexture);
     iblTextures = RenderContext::imageBasedLighting->GenerateTextures(texture);
+
+    demoEnvironments = Details::CreateDemoEnvironments(paths);
+    Engine::settings.environment.count = static_cast<int32_t>(demoEnvironments.size());
 
     VulkanContext::textureManager->DestroyTexture(panoramaTexture);
 }
@@ -50,4 +77,8 @@ Environment::~Environment()
     VulkanContext::textureManager->DestroyTexture(texture);
     VulkanContext::textureManager->DestroyTexture(iblTextures.irradiance);
     VulkanContext::textureManager->DestroyTexture(iblTextures.reflection);
+    for (const auto& demo : demoEnvironments)
+    {
+        VulkanContext::textureManager->DestroyTexture(demo.texture);
+    }
 }

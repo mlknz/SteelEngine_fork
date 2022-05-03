@@ -80,7 +80,7 @@ namespace Details
     {
         IMGUI_CHECKVERSION();
         ImGui::CreateContext();
-        ImGui::StyleColorsClassic();
+        ImGui::StyleColorsLight();
 
         ImGui_ImplGlfw_InitForVulkan(window, true);
 
@@ -139,6 +139,82 @@ UIRenderSystem::~UIRenderSystem()
     VulkanContext::device->Get().destroyDescriptorPool(descriptorPool);
 }
 
+static void ImGui_MaterialViewMode()
+{
+    if (!ImGui::CollapsingHeader("Material View Mode"))
+    {
+        return;
+    }
+    
+    const std::array<std::string, 6> names = { "Albedo", "Emission", "Roughness", "Metallic", "Occlusion", "Normal"};
+
+    const std::string buttonLabel = names[Engine::settings.material.viewModeIndex];
+
+    const std::string sliderLabel = buttonLabel + "###sliderMaterialViewMode";
+    ImGui::SliderInt(sliderLabel.c_str(), &Engine::settings.material.viewModeIndex, 0, static_cast<int>(names.size() - 1));
+
+    //if (ImGui::Button(buttonLabel.c_str()))
+    //{
+    //    ImGui::OpenPopup("materialsDebugPopup");
+    //}
+    //if (ImGui::BeginPopup("materialsDebugPopup"))
+    //{
+    //    for (size_t i = 0; i < names.size(); i++)
+    //    {
+    //        if (ImGui::Selectable(names[i].c_str()))
+    //        {
+    //            Engine::settings.materialsDebug.viewModeIndex = static_cast<uint32_t>(i);
+    //        }
+    //    }
+    //    ImGui::EndPopup();
+    //}
+    //ImGui::SameLine();
+    //ImGui::TextUnformatted("View Mode");
+}
+
+static void ImGui_SphericalLights()
+{
+    if (!ImGui::CollapsingHeader("Spherical Lights"))
+    {
+        return;
+    }
+    
+    ImGui::SliderFloat("Intensity##Spherical", &Engine::settings.pointLights.intensity, 0.0f, 10.0f, "%.2f");
+    ImGui::SliderFloat("Radius", &Engine::settings.pointLights.radius, 0.0f, 4.0f, "%.2f");
+
+    //if (ImGui::Button("Reset##Spherical"))
+    //{
+    //    Engine::settings.pointLights = Engine::Settings::PointLights{};
+    //}
+}
+
+static void ImGui_DirectionalLight()
+{
+    if (!ImGui::CollapsingHeader("Directional Light"))
+    {
+        return;
+    }
+
+    ImGui::SliderFloat("Intensity##Directional", &Engine::settings.directLight.intensity, 0.0f, 2.0f, "%.2f");
+    ImGui::SliderFloat("Rotation", &Engine::settings.directLight.rotation, 0.0f, 1.0f, "%.2f");
+
+    //if (ImGui::Button("Reset##Spherical"))
+    //{
+    //    Engine::settings.directLight = Engine::Settings::DirectLight{};
+    //}
+}
+
+static void ImGui_Environment()
+{
+    if (!ImGui::CollapsingHeader("Environment"))
+    {
+        return;
+    }
+    
+    const std::string sliderLabel = Engine::GetDemoData()[Engine::settings.environment.index].name + "###SliderEnvironment";
+    ImGui::SliderInt(sliderLabel.c_str(), &Engine::settings.environment.index, 0, Engine::settings.environment.count - 1);
+}
+
 void UIRenderSystem::Process(float)
 {
     ImGui_ImplVulkan_NewFrame();
@@ -152,6 +228,11 @@ void UIRenderSystem::Process(float)
         const std::string text = textBinding();
         ImGui::Text("%s", text.c_str());
     }
+
+    ImGui_MaterialViewMode();
+    ImGui_SphericalLights();
+    ImGui_DirectionalLight();
+    ImGui_Environment();
 
     ImGui::End();
 

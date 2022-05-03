@@ -42,3 +42,18 @@ std::string Filesystem::ReadFile(const Filepath& filepath)
 
     return buffer.str();
 }
+
+std::vector<Filepath> Filesystem::GetFilepaths(const Filepath& folder, const std::string& extension)
+{
+    std::vector<Filepath> filepaths;
+
+    for (const auto& entry : std::filesystem::directory_iterator(folder.Get()))
+    {
+        if (entry.path().extension().string() == extension)
+        {
+            filepaths.push_back(Filepath(entry.path().string()));
+        }
+    }
+
+    return filepaths;
+}

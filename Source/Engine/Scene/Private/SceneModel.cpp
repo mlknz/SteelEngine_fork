@@ -60,7 +60,6 @@ namespace Utils
         case 5:
             return vk::Filter::eLinear;
         default:
-            Assert(false);
             return vk::Filter::eLinear;
         }
     }
@@ -78,7 +77,6 @@ namespace Utils
         case 3:
             return vk::SamplerMipmapMode::eNearest;
         default:
-            Assert(false);
             return vk::SamplerMipmapMode::eLinear;
         }
     }
@@ -94,7 +92,6 @@ namespace Utils
         case 2:
             return vk::SamplerAddressMode::eRepeat;
         default:
-            Assert(false);
             return vk::SamplerAddressMode::eRepeat;
         }
     }
@@ -1311,7 +1308,7 @@ namespace DetailsPT
         {
             const glm::vec4& position = pointLight.position;
 
-            const glm::vec3 scale = glm::vec3(Config::kPointLightRadius * 2.0f);
+            const glm::vec3 scale = glm::vec3(Config::kPointLightRadius * 2.0f * 4.0f);
             const glm::vec3 offset(position.x, position.y, position.z);
 
             const glm::mat4 transform = glm::translate(offset) * glm::scale(scale);

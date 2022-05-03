@@ -26,7 +26,9 @@ namespace Config
     //const Filepath kDefaultEnvironmentPath("~/Assets/Environments/Dusk.hdr");
     const Filepath kDefaultEnvironmentPath("~/Assets/Environments/SunnyHills.hdr");
 
-    constexpr bool kUseDefaultAssets = true;
+    const Filepath kEnvironmentsFolder("~/Assets/EnvironmentsTest/");
+
+    constexpr bool kUseDefaultAssets = false;
 
     constexpr bool kStaticCamera = false;
 
@@ -35,7 +37,7 @@ namespace Config
 
     constexpr float kMaxEnvironmentLuminance = 25.0f;
 
-    constexpr bool kGlobalIllumination = true;
+    constexpr bool kGlobalIllumination = false;
 
     constexpr bool kReverseDepth = true;
 

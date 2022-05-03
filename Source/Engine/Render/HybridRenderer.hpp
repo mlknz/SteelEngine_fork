@@ -23,6 +23,9 @@ public:
 
     void Render(vk::CommandBuffer commandBuffer, uint32_t imageIndex) const;
 
+    void Initialize(const Scene* scene_, const ScenePT* scenePT_,
+        const Camera* camera_, const Environment* environment_);
+
 private:
     const Scene* scene = nullptr;
     const ScenePT* scenePT = nullptr;

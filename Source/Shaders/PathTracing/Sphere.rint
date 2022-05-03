@@ -7,11 +7,17 @@
 
 #include "Common/RayTracing.glsl"
 
+layout(push_constant) uniform PushConstants{
+    layout(offset = 20) float pointLightsRadius;
+};
+
+#define MAX_POINT_LIGHT_RADIUS 4.0;
+
 void main()
 {
     Sphere sphere;
     sphere.center = vec3(0.0);
-    sphere.radius = 0.5;
+    sphere.radius = 0.5 * pointLightsRadius / MAX_POINT_LIGHT_RADIUS;
 
     Ray ray;
     ray.origin = gl_ObjectRayOriginEXT;

@@ -1,5 +1,7 @@
 #include "Engine/Engine.hpp"
 
+#include <portable-file-dialogs.h>
+
 #include "Engine/Config.hpp"
 #include "Engine/Filesystem/Filesystem.hpp"
 #include "Engine/Scene/SceneModel.hpp"
@@ -16,7 +18,7 @@
 
 namespace Details
 {
-    static Filepath GetScenePath()
+    static std::optional<Filepath> GetScenePath()
     {
         if constexpr (Config::kUseDefaultAssets)
         {
@@ -25,32 +27,46 @@ namespace Details
         else
         {
             const DialogDescription dialogDescription{
-                "Select Scene File", Filepath("~/"),
+                "Select Scene File", Filepath("~/Assets/Scenes/"),
                 { "glTF Files", "*.gltf" }
             };
 
             const std::optional<Filepath> scenePath = Filesystem::ShowOpenDialog(dialogDescription);
 
-            return scenePath.value_or(Config::kDefaultScenePath);
+            return scenePath;
         }
     }
 
-    static Filepath GetEnvironmentPath()
+    static std::optional<std::vector<Filepath>> GetEnvironmentPaths()
     {
         if constexpr (Config::kUseDefaultAssets)
         {
-            return Config::kDefaultEnvironmentPath;
+            return std::vector<Filepath>{ Config::kDefaultEnvironmentPath };
         }
         else
         {
-            const DialogDescription dialogDescription{
-                "Select Environment File", Filepath("~/"),
+            const DialogDescription description{
+                "Select Environment File", Filepath("~/Assets/Environments/"),
                 { "Image Files", "*.hdr *.png" }
             };
 
-            const std::optional<Filepath> environmentPath = Filesystem::ShowOpenDialog(dialogDescription);
 
-            return environmentPath.value_or(Config::kDefaultEnvironmentPath);
+            pfd::open_file openDialog(description.title,
+                description.defaultPath.GetAbsolute(),
+                description.filters, pfd::opt::multiselect);
+
+            if (openDialog.result().empty())
+            {
+                return std::nullopt;
+            }
+
+            std::vector<Filepath> paths;
+            for (const auto& path : openDialog.result())
+            {
+                paths.emplace_back(path);
+            }
+
+            return paths;
         }
     }
 
@@ -89,6 +105,7 @@ namespace Details
 
 Timer Engine::timer;
 Engine::State Engine::state;
+Engine::Settings Engine::settings;
 
 std::unique_ptr<Window> Engine::window;
 std::unique_ptr<FrameLoop> Engine::frameLoop;
@@ -118,8 +135,9 @@ void Engine::Create()
     AddEventHandler<MouseInput>(EventType::eMouseInput, &Engine::HandleMouseInputEvent);
 
     frameLoop = std::make_unique<FrameLoop>();
-    sceneModel = std::make_unique<SceneModel>(Details::GetScenePath());
-    environment = std::make_unique<Environment>(Details::GetEnvironmentPath());
+
+    sceneModel = std::make_unique<SceneModel>(Details::GetScenePath().value_or(Config::kDefaultScenePath));
+    environment = std::make_unique<Environment>(Details::GetEnvironmentPaths().value_or(std::vector<Filepath>{ Config::kDefaultEnvironmentPath }));
 
     scene = sceneModel->CreateScene();
     scenePT = sceneModel->CreateScenePT();
@@ -131,10 +149,12 @@ void Engine::Create()
     AddSystem<CameraSystem>(camera.get());
     AddSystem<UIRenderSystem>(*window);
 
+    /*
     GetSystem<UIRenderSystem>()->BindText([]() { return Details::GetCameraPositionText(*camera); });
     GetSystem<UIRenderSystem>()->BindText([]() { return Details::GetCameraDirectionText(*camera); });
     GetSystem<UIRenderSystem>()->BindText([]() { return Details::GetLightDirectionText(*environment); });
     GetSystem<UIRenderSystem>()->BindText([]() { return Details::GetLightColorText(*environment); });
+    */
 }
 
 void Engine::Run()
@@ -232,6 +252,8 @@ void Engine::HandleKeyInputEvent(const KeyInput& keyInput)
         case Key::eT:
             ToggleRenderMode();
             break;
+        case Key::eO:
+            OpenSceneAndEnvironment();
         default:
             break;
         }
@@ -263,4 +285,33 @@ void Engine::ToggleRenderMode()
     i = (i + 1) % kRenderModeCount;
 
     state.renderMode = static_cast<RenderMode>(i);
+}
+
+void Engine::OpenSceneAndEnvironment()
+{
+    VulkanContext::device->WaitIdle();
+
+    const std::optional<Filepath> scenePath = Details::GetScenePath();
+    if (!scenePath.has_value())
+    {
+        return;
+    }
+
+    const std::optional<std::vector<Filepath>> environmentPaths = Details::GetEnvironmentPaths();
+    if (!environmentPaths.has_value())
+    {
+        return;
+    }
+
+    sceneModel = std::make_unique<SceneModel>(scenePath.value());
+    environment = std::make_unique<Environment>(environmentPaths.value());
+
+    scene = sceneModel->CreateScene();
+    scenePT = sceneModel->CreateScenePT();
+    camera = sceneModel->CreateCamera();
+
+    hybridRenderer->Initialize(scene.get(), scenePT.get(), camera.get(), environment.get());
+    pathTracingRenderer->Initialize(scenePT.get(), camera.get(), environment.get());
+
+    GetSystem<CameraSystem>()->SetCamera(camera.get());
 }

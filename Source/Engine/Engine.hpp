@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/EngineHelpers.hpp"
+#include "Scene/Environment.hpp"
 
 #include "Utils/TimeHelpers.hpp"
 
@@ -23,6 +24,51 @@ public:
         RenderMode renderMode = RenderMode::eHybrid;
         bool drawingSuspended = false;
     };
+
+    struct Settings
+    {
+        struct Material
+        {
+            int32_t viewModeIndex = 0;
+        };
+
+        struct PointLights
+        {
+            float intensity = 1.0f;
+            float radius = 1.0f;
+
+            bool operator==(const PointLights& other) const
+            {
+                return intensity == other.intensity && radius == other.radius;
+            }
+        };
+
+        struct DirectLight
+        {
+            float intensity = 1.0f;
+            float rotation = 0.0f;
+
+            bool operator==(const DirectLight& other) const
+            {
+                return intensity == other.intensity && rotation == other.rotation;
+            }
+        };
+
+        struct Environment
+        {
+            int32_t index = 0;
+            int32_t count = 1;
+        };
+
+        Material material;
+        PointLights pointLights;
+        DirectLight directLight;
+        Environment environment;
+    };
+
+    static Settings settings;
+
+    static std::vector<Environment::Data> GetDemoData() { return environment->GetDemoData(); }
 
     static void Create();
     static void Run();
@@ -49,6 +95,7 @@ private:
 
     static std::unique_ptr<Window> window;
     static std::unique_ptr<FrameLoop> frameLoop;
+
     static std::unique_ptr<SceneModel> sceneModel;
     static std::unique_ptr<Environment> environment;
 
@@ -72,6 +119,8 @@ private:
     static void HandleMouseInputEvent(const MouseInput& mouseInput);
 
     static void ToggleRenderMode();
+
+    static void OpenSceneAndEnvironment();
 };
 
 template <class T>

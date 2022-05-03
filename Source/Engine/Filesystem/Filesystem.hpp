@@ -18,4 +18,6 @@ namespace Filesystem
     std::optional<Filepath> ShowSaveDialog(const DialogDescription& description);
 
     std::string ReadFile(const Filepath& filepath);
+
+    std::vector<Filepath> GetFilepaths(const Filepath& folder, const std::string& extension);
 }

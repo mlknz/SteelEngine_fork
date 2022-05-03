@@ -24,17 +24,11 @@ namespace Details
 }
 
 CameraSystem::CameraSystem(Camera* camera_)
-    : camera(camera_)
-    , parameters(Config::DefaultCamera::kSystemParameters)
+    : parameters(Config::DefaultCamera::kSystemParameters)
     , movementKeyBindings(Config::DefaultCamera::kMovementKeyBindings)
     , speedKeyBindings(Config::DefaultCamera::kSpeedKeyBindings)
 {
-    const glm::vec3 direction = glm::normalize(camera->GetLocation().target - camera->GetLocation().position);
-
-    const glm::vec2 projection(direction.x, direction.z);
-
-    state.yawPitch.x = glm::atan(direction.x, -direction.z);
-    state.yawPitch.y = std::atan2(direction.y, glm::length(projection));
+    SetCamera(camera_);
 
     Engine::AddEventHandler<vk::Extent2D>(EventType::eResize,
             MakeFunction(this, &CameraSystem::HandleResizeEvent));
@@ -72,6 +66,18 @@ void CameraSystem::Process(float deltaSeconds)
     {
         Engine::TriggerEvent(EventType::eCameraUpdate);
     }
+}
+
+void CameraSystem::SetCamera(Camera* camera_)
+{
+    camera = camera_;
+
+    const glm::vec3 direction = glm::normalize(camera->GetLocation().target - camera->GetLocation().position);
+
+    const glm::vec2 projection(direction.x, direction.z);
+
+    state.yawPitch.x = glm::atan(direction.x, -direction.z);
+    state.yawPitch.y = std::atan2(direction.y, glm::length(projection));
 }
 
 void CameraSystem::HandleResizeEvent(const vk::Extent2D& extent) const

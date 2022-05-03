@@ -8,6 +8,8 @@ public:
     Filepath() = default;
     explicit Filepath(std::string path_);
 
+    const std::filesystem::path& Get() const { return path; }
+
     std::string GetAbsolute() const;
 
     std::string GetDirectory() const;

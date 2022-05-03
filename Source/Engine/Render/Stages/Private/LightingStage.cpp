@@ -1,5 +1,6 @@
 #include "Engine/Render/Stages/LightingStage.hpp"
 
+#include "Engine/Engine.hpp"
 #include "Engine/Render/RenderContext.hpp"
 #include "Engine/Render/Stages/GBufferStage.hpp"
 #include "Engine/Render/Vulkan/PipelineHelpers.hpp"
@@ -86,9 +87,9 @@ namespace Details
         const ShaderModule shaderModule = VulkanContext::shaderManager->CreateShaderModule(
                 vk::ShaderStageFlagBits::eCompute, Filepath("~/Shaders/Hybrid/Lighting.comp"),
                 defines, specializationValues);
-
+        
         const vk::PushConstantRange pushConstantRange(
-                vk::ShaderStageFlagBits::eCompute, 0, sizeof(glm::vec3));
+                vk::ShaderStageFlagBits::eCompute, 0, sizeof(glm::vec3) + sizeof(uint32_t));
 
         const ComputePipeline::Description description{
             shaderModule, descriptorSetLayouts, { pushConstantRange }
@@ -177,6 +178,9 @@ void LightingStage::Execute(vk::CommandBuffer commandBuffer, uint32_t imageIndex
 
     commandBuffer.pushConstants<glm::vec3>(pipeline->GetLayout(),
             vk::ShaderStageFlagBits::eCompute, 0, { cameraPosition });
+
+    commandBuffer.pushConstants<uint32_t>(pipeline->GetLayout(),
+        vk::ShaderStageFlagBits::eCompute, 12, { static_cast<uint32_t>(Engine::settings.material.viewModeIndex) });
 
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eCompute,
             pipeline->GetLayout(), 0, descriptorSets, {});

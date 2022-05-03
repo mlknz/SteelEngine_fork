@@ -30,7 +30,7 @@ private:
     struct EnvironmentData
     {
         vk::Buffer indexBuffer;
-        DescriptorSet descriptorSet;
+        MultiDescriptorSet descriptorSet;
     };
 
     struct PointLightsData

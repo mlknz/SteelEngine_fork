@@ -3,6 +3,12 @@
 #define SHADER_STAGE vertex
 #pragma shader_stage(vertex)
 
+#define DEFAULT_POINT_LIGHTS_RADIUS 0.05
+
+layout(push_constant) uniform PushConstants{
+    float pointLightsRadius;
+};
+
 layout(set = 0, binding = 0) uniform Camera{ mat4 viewProj; };
 
 layout(location = 0) in vec3 inPosition;
@@ -21,5 +27,5 @@ void main()
 {
     outColor = inColor.rgb;
 
-    gl_Position = viewProj * vec4(inPosition + inOffset.xyz, 1.0);
+    gl_Position = viewProj * vec4(inPosition * pointLightsRadius + inOffset.xyz, 1.0);
 }

@@ -22,6 +22,8 @@ public:
 
     void Render(vk::CommandBuffer commandBuffer, uint32_t imageIndex);
 
+    void Initialize(const ScenePT* scene_, const Camera* camera_, const Environment* environment_);
+
 protected:
     PathTracingRenderer(const ScenePT* scene_,
             const Camera* camera_, const Environment* environment_,
@@ -39,8 +41,8 @@ protected:
 private:
     struct GeneralData
     {
-        vk::Buffer directLightBuffer;
-        DescriptorSet descriptorSet;
+        std::vector<vk::Buffer> directLightBuffers;
+        MultiDescriptorSet descriptorSet;
     };
 
     const bool isProbeRenderer;

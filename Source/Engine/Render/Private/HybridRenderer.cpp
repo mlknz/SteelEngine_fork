@@ -74,6 +74,37 @@ void HybridRenderer::Render(vk::CommandBuffer commandBuffer, uint32_t imageIndex
     forwardStage->Execute(commandBuffer, imageIndex);
 }
 
+void HybridRenderer::Initialize(const Scene* scene_, const ScenePT* scenePT_,
+    const Camera* camera_, const Environment* environment_)
+{
+    if constexpr (Config::kGlobalIllumination)
+    {
+        VulkanContext::bufferManager->DestroyBuffer(lightVolume.positionsBuffer);
+        VulkanContext::bufferManager->DestroyBuffer(lightVolume.tetrahedralBuffer);
+        VulkanContext::bufferManager->DestroyBuffer(lightVolume.coefficientsBuffer);
+    }
+
+    for (const auto& texture : gBufferTextures)
+    {
+        VulkanContext::textureManager->DestroyTexture(texture);
+    }
+    
+    if constexpr (Config::kGlobalIllumination)
+    {
+        lightVolume = RenderContext::globalIllumination->GenerateLightVolume(
+            scene, scenePT, environment);
+    }
+
+    scene = scene_;
+    scenePT = scenePT_;
+    camera = camera_;
+    environment = environment_;
+
+    SetupGBufferTextures();
+
+    SetupRenderStages();
+}
+
 void HybridRenderer::SetupGBufferTextures()
 {
     const vk::Extent2D& extent = VulkanContext::swapchain->GetExtent();

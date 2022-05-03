@@ -8,10 +8,19 @@ class Filepath;
 class Environment
 {
 public:
-    Environment(const Filepath& path);
+    struct Data
+    {
+        Texture texture;
+        DirectLight directLight;
+        std::string name;
+    };
+
+    Environment(const std::vector<Filepath>& paths);
     ~Environment();
 
     const Texture& GetTexture() const { return texture; }
+
+    const std::vector<Data>& GetDemoData() const { return demoEnvironments; }
 
     const DirectLight& GetDirectLight() const { return directLight; }
 
@@ -25,4 +34,6 @@ private:
     DirectLight directLight;
 
     ImageBasedLighting::Textures iblTextures;
+
+    std::vector<Data> demoEnvironments;
 };

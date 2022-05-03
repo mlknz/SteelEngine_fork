@@ -152,6 +152,11 @@ namespace Details
             0, vk::VertexInputRate::eInstance
         };
 
+        const std::vector<vk::PushConstantRange> pushConstantRanges{
+            vk::PushConstantRange(vk::ShaderStageFlagBits::eVertex, 0, sizeof(float)),
+            vk::PushConstantRange(vk::ShaderStageFlagBits::eFragment, 4, sizeof(float)),
+        };
+
         const GraphicsPipeline::Description description{
             vk::PrimitiveTopology::eTriangleList,
             vk::PolygonMode::eFill,
@@ -163,7 +168,7 @@ namespace Details
             { vertexDescription, instanceDescription },
             { BlendMode::eDisabled },
             descriptorSetLayouts,
-            {}
+            pushConstantRanges
         };
 
         std::unique_ptr<GraphicsPipeline> pipeline = GraphicsPipeline::Create(renderPass.Get(), description);
@@ -287,8 +292,8 @@ ForwardStage::ForwardStage(const Scene* scene_, const Camera* camera_,
 
     SetupPipelines();
 
-    Engine::AddEventHandler<KeyInput>(EventType::eKeyInput,
-            MakeFunction(this, &ForwardStage::HandleKeyInputEvent));
+    //Engine::AddEventHandler<KeyInput>(EventType::eKeyInput,
+    //        MakeFunction(this, &ForwardStage::HandleKeyInputEvent));
 }
 
 ForwardStage::~ForwardStage()
@@ -305,7 +310,7 @@ ForwardStage::~ForwardStage()
         VulkanContext::bufferManager->DestroyBuffer(buffer);
     }
 
-    DescriptorHelpers::DestroyDescriptorSet(environmentData.descriptorSet);
+    DescriptorHelpers::DestroyMultiDescriptorSet(environmentData.descriptorSet);
     VulkanContext::bufferManager->DestroyBuffer(environmentData.indexBuffer);
 
     if (pointLightsData.instanceCount > 0)
@@ -404,11 +409,18 @@ void ForwardStage::SetupEnvironmentData()
         vk::DescriptorBindingFlags()
     };
 
-    const DescriptorData descriptorData = DescriptorHelpers::GetData(
-            RenderContext::defaultSampler, environment->GetTexture().view);
+    std::vector<DescriptorSetData> descriptorSetsData;
+    for (const auto& demo : environment->GetDemoData())
+    {
+        const DescriptorSetData descriptorSetData{
+            DescriptorHelpers::GetData(RenderContext::defaultSampler, demo.texture.view)
+        };
 
-    environmentData.descriptorSet = DescriptorHelpers::CreateDescriptorSet(
-            { descriptorDescription }, { descriptorData });
+        descriptorSetsData.push_back(descriptorSetData);
+    }
+
+    environmentData.descriptorSet = DescriptorHelpers::CreateMultiDescriptorSet(
+            { descriptorDescription }, descriptorSetsData);
 }
 
 void ForwardStage::SetupPointLightsData()
@@ -475,7 +487,7 @@ void ForwardStage::DrawEnvironment(vk::CommandBuffer commandBuffer, uint32_t ima
 
     const std::vector<vk::DescriptorSet> environmentDescriptorSets{
         environmentCameraData.descriptorSet.values[imageIndex],
-        environmentData.descriptorSet.value
+        environmentData.descriptorSet.values[Engine::settings.environment.index]
     };
 
     commandBuffer.setViewport(0, { viewport });
@@ -511,6 +523,11 @@ void ForwardStage::DrawPointLights(vk::CommandBuffer commandBuffer, uint32_t ima
     commandBuffer.setScissor(0, { renderArea });
 
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eGraphics, pointLightsPipeline->Get());
+
+    commandBuffer.pushConstants<float>(pointLightsPipeline->GetLayout(),
+        vk::ShaderStageFlagBits::eVertex, 0, { Engine::settings.pointLights.radius });
+    commandBuffer.pushConstants<float>(pointLightsPipeline->GetLayout(),
+        vk::ShaderStageFlagBits::eFragment, 4, { Engine::settings.pointLights.intensity });
 
     commandBuffer.bindIndexBuffer(pointLightsData.indexBuffer, 0, vk::IndexType::eUint32);
     commandBuffer.bindVertexBuffers(0, vertexBuffers, { 0, 0 });

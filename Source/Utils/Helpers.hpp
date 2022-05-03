@@ -5,6 +5,8 @@
 namespace Numbers
 {
     constexpr float kPi = glm::pi<float>();
+    constexpr float kPi2 = kPi * 2.0f;
+    constexpr float kPi05 = kPi * 0.5f;
     constexpr float kInversePi = 1.0f / kPi;
 
     constexpr uint64_t kMaxUint = std::numeric_limits<uint64_t>::max();

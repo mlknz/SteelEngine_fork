@@ -99,9 +99,10 @@ namespace Details
                 VK_SHADER_UNUSED_KHR, 5, VK_SHADER_UNUSED_KHR, 6
             });
         }
-
+        
         const std::vector<vk::PushConstantRange> pushConstantRanges{
-            vk::PushConstantRange(vk::ShaderStageFlagBits::eRaygenKHR, 0, sizeof(uint32_t))
+            vk::PushConstantRange(vk::ShaderStageFlagBits::eRaygenKHR, 0, sizeof(uint32_t) + sizeof(float) * 4),
+            vk::PushConstantRange(vk::ShaderStageFlagBits::eIntersectionKHR, 20, sizeof(float)),
         };
 
         const RayTracingPipeline::Description description{
@@ -170,8 +171,11 @@ PathTracingRenderer::PathTracingRenderer(const ScenePT* scene_,
 
 PathTracingRenderer::~PathTracingRenderer()
 {
-    DescriptorHelpers::DestroyDescriptorSet(generalData.descriptorSet);
-    VulkanContext::bufferManager->DestroyBuffer(generalData.directLightBuffer);
+    DescriptorHelpers::DestroyMultiDescriptorSet(generalData.descriptorSet);
+    for (const auto& buffer : generalData.directLightBuffers)
+    {
+        VulkanContext::bufferManager->DestroyBuffer(buffer);
+    }
 
     DescriptorHelpers::DestroyMultiDescriptorSet(cameraData.descriptorSet);
     for (const auto& buffer : cameraData.buffers)
@@ -208,10 +212,17 @@ void PathTracingRenderer::Render(vk::CommandBuffer commandBuffer, uint32_t image
                 ImageHelpers::kFlatColor, layoutTransition);
     }
 
+    static int32_t lastEnvironmentIndex = Engine::settings.environment.index;
+    if (lastEnvironmentIndex != Engine::settings.environment.index)
+    {
+        lastEnvironmentIndex = Engine::settings.environment.index;
+        ResetAccumulation();
+    }
+
     std::vector<vk::DescriptorSet> descriptorSets{
         renderTargets.descriptorSet.values[imageIndex],
         cameraData.descriptorSet.values[imageIndex],
-        generalData.descriptorSet.value
+        generalData.descriptorSet.values[lastEnvironmentIndex]
     };
 
     for (const auto& [layout, value] : scene->GetDescriptorSets())
@@ -221,11 +232,36 @@ void PathTracingRenderer::Render(vk::CommandBuffer commandBuffer, uint32_t image
 
     commandBuffer.bindPipeline(vk::PipelineBindPoint::eRayTracingKHR, rayTracingPipeline->Get());
 
+    static Engine::Settings::PointLights lastPointLightsSettings = Engine::settings.pointLights;
+    static Engine::Settings::DirectLight lastDirectLightSettings = Engine::settings.directLight;
+    
+    if (lastPointLightsSettings != Engine::settings.pointLights)
+    {
+        lastPointLightsSettings = Engine::settings.pointLights;
+        ResetAccumulation();
+    }
+    if (lastDirectLightSettings != Engine::settings.directLight)
+    {
+        lastDirectLightSettings = Engine::settings.directLight;
+        ResetAccumulation();
+    }
+
     if (AccumulationEnabled())
     {
         commandBuffer.pushConstants<uint32_t>(rayTracingPipeline->GetLayout(),
                 vk::ShaderStageFlagBits::eRaygenKHR, 0, { accumulationIndex++ });
     }
+
+    commandBuffer.pushConstants<float>(rayTracingPipeline->GetLayout(),
+        vk::ShaderStageFlagBits::eRaygenKHR, 4, { lastDirectLightSettings.intensity });
+    commandBuffer.pushConstants<float>(rayTracingPipeline->GetLayout(),
+        vk::ShaderStageFlagBits::eRaygenKHR, 8, { lastDirectLightSettings.rotation * Numbers::kPi2 });
+    commandBuffer.pushConstants<float>(rayTracingPipeline->GetLayout(),
+        vk::ShaderStageFlagBits::eRaygenKHR, 12, { lastPointLightsSettings.intensity });
+    commandBuffer.pushConstants<float>(rayTracingPipeline->GetLayout(),
+        vk::ShaderStageFlagBits::eRaygenKHR, 16, { lastPointLightsSettings.radius });
+    commandBuffer.pushConstants<float>(rayTracingPipeline->GetLayout(),
+        vk::ShaderStageFlagBits::eIntersectionKHR, 20, { lastPointLightsSettings.radius });
 
     commandBuffer.bindDescriptorSets(vk::PipelineBindPoint::eRayTracingKHR,
             rayTracingPipeline->GetLayout(), 0, descriptorSets, {});
@@ -257,6 +293,44 @@ void PathTracingRenderer::Render(vk::CommandBuffer commandBuffer, uint32_t image
         ImageHelpers::TransitImageLayout(commandBuffer, swapchainImage,
                 ImageHelpers::kFlatColor, layoutTransition);
     }
+}
+
+void PathTracingRenderer::Initialize(const ScenePT* scene_, const Camera* camera_, const Environment* environment_)
+{
+    DescriptorHelpers::DestroyMultiDescriptorSet(generalData.descriptorSet);
+    for (const auto& buffer : generalData.directLightBuffers)
+    {
+        VulkanContext::bufferManager->DestroyBuffer(buffer);
+    }
+
+    DescriptorHelpers::DestroyMultiDescriptorSet(cameraData.descriptorSet);
+    for (const auto& buffer : cameraData.buffers)
+    {
+        VulkanContext::bufferManager->DestroyBuffer(buffer);
+    }
+
+    DescriptorHelpers::DestroyMultiDescriptorSet(renderTargets.descriptorSet);
+
+    if (AccumulationEnabled())
+    {
+        VulkanContext::textureManager->DestroyTexture(renderTargets.accumulationTexture);
+    }
+
+    scene = scene_;
+    camera = camera_;
+    environment = environment_;
+
+    Assert(camera->GetDescription().type == Camera::Type::ePerspective);
+
+    ResetAccumulation();
+
+    SetupRenderTargets(VulkanContext::swapchain->GetExtent());
+
+    SetupCameraData(VulkanContext::swapchain->GetImageCount());
+
+    SetupGeneralData();
+
+    SetupPipeline();
 }
 
 void PathTracingRenderer::SetupRenderTargets(const vk::Extent2D& extent)
@@ -328,10 +402,15 @@ void PathTracingRenderer::SetupCameraData(uint32_t bufferCount)
 
 void PathTracingRenderer::SetupGeneralData()
 {
-    const DirectLight& directLight = environment->GetDirectLight();
+    const std::vector<Environment::Data>& environments = environment->GetDemoData();
 
-    generalData.directLightBuffer = BufferHelpers::CreateBufferWithData(
-            vk::BufferUsageFlagBits::eUniformBuffer, ByteView(directLight));
+    generalData.directLightBuffers.resize(environments.size());
+
+    for (size_t i = 0; i < environments.size(); ++i)
+    {
+        generalData.directLightBuffers[i] = BufferHelpers::CreateBufferWithData(
+            vk::BufferUsageFlagBits::eUniformBuffer, ByteView(environments[i].directLight));
+    }
 
     const DescriptorSetDescription descriptorSetDescription{
         DescriptorDescription{
@@ -346,13 +425,20 @@ void PathTracingRenderer::SetupGeneralData()
         }
     };
 
-    const DescriptorSetData descriptorSetData{
-        DescriptorHelpers::GetData(generalData.directLightBuffer),
-        DescriptorHelpers::GetData(RenderContext::defaultSampler, environment->GetTexture().view),
-    };
+    std::vector<DescriptorSetData> descriptorSetsData;
 
-    generalData.descriptorSet = DescriptorHelpers::CreateDescriptorSet(
-            descriptorSetDescription, descriptorSetData);
+    for (size_t i = 0; i < environments.size(); ++i)
+    {
+        const DescriptorSetData descriptorSetData{
+            DescriptorHelpers::GetData(generalData.directLightBuffers[i]),
+            DescriptorHelpers::GetData(RenderContext::defaultSampler, environments[i].texture.view),
+        };
+
+        descriptorSetsData.push_back(descriptorSetData);
+    }
+
+    generalData.descriptorSet = DescriptorHelpers::CreateMultiDescriptorSet(
+            descriptorSetDescription, descriptorSetsData);
 }
 
 void PathTracingRenderer::SetupPipeline()
