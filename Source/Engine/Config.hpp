@@ -19,12 +19,12 @@ namespace Config
 
     //const Filepath kDefaultScenePath("~/Assets/Scenes/Porsche/Porsche.gltf");
     //const Filepath kDefaultScenePath("~/Assets/Scenes/SanMiguel/SanMiguel.gltf");
-    const Filepath kDefaultScenePath("~/Assets/Scenes/ModernSponza/ModernSponza.gltf");
-    //const Filepath kDefaultScenePath("~/Assets/Scenes/DamagedHelmet/DamagedHelmet.gltf");
+    //const Filepath kDefaultScenePath("~/Assets/Scenes/ModernSponza/ModernSponza.gltf");
+    const Filepath kDefaultScenePath("~/Assets/Scenes/DamagedHelmet/DamagedHelmet.gltf");
     //const Filepath kDefaultScenePath("~/Assets/Scenes/CornellBox/CornellBox.gltf");
 
     //const Filepath kDefaultEnvironmentPath("~/Assets/Environments/Dusk.hdr");
-    const Filepath kDefaultEnvironmentPath("~/Assets/Environments/SunnyHills.hdr");
+    const Filepath kDefaultEnvironmentPath("~/Assets/space_panorama_2k.hdr");
 
     constexpr bool kUseDefaultAssets = true;
 
@@ -35,7 +35,7 @@ namespace Config
 
     constexpr float kMaxEnvironmentLuminance = 25.0f;
 
-    constexpr bool kGlobalIllumination = true;
+    constexpr bool kGlobalIllumination = false;
 
     constexpr bool kReverseDepth = true;
 

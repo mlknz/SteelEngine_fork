@@ -8,6 +8,8 @@
 #include "Engine2/Components2.hpp"
 #include "Engine2/RenderComponent.hpp"
 
+#include "Gameplay/Physics/Components/ZaryaPhysicsBodyComponent.hpp"
+
 #include "Utils/Assert.hpp"
 #include "Utils/Helpers.hpp"
 #include "Utils/Logger.hpp"
@@ -49,7 +51,6 @@ namespace Details
             case 5:
                 return vk::Filter::eLinear;
             default:
-                Assert(false);
                 return vk::Filter::eLinear;
             }
         }
@@ -67,7 +68,6 @@ namespace Details
             case 3:
                 return vk::SamplerMipmapMode::eNearest;
             default:
-                Assert(false);
                 return vk::SamplerMipmapMode::eLinear;
             }
         }
@@ -83,7 +83,6 @@ namespace Details
             case 2:
                 return vk::SamplerAddressMode::eRepeat;
             default:
-                Assert(false);
                 return vk::SamplerAddressMode::eRepeat;
             }
         }
@@ -625,6 +624,12 @@ private:
                 {
                     scene.emplace<EnvironmentComponent>(entity);
                 }
+
+                const bool needsPhysicsBody = true;
+                if (needsPhysicsBody)
+                {
+                    AddPhysicsBodyComponent(entity, node);
+                }
             });
     }
 
@@ -664,6 +669,12 @@ private:
             rc.renderObjects[i].mesh = static_cast<uint32_t>(meshOffset + i);
             rc.renderObjects[i].material = static_cast<uint32_t>(primitive.material);
         }
+    }
+
+    void AddPhysicsBodyComponent(entt::entity entity, const tinygltf::Node& /*node*/) const
+    {
+        ZaryaPhysicsBody& physicsBody = scene.emplace<ZaryaPhysicsBody>(entity);
+        physicsBody.flag = true;
     }
 };
 

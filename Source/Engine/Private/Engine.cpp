@@ -14,6 +14,8 @@
 #include "Engine/Render/RenderContext.hpp"
 #include "Engine/Render/Vulkan/VulkanContext.hpp"
 
+#include "Gameplay/Physics/PhysicsSystem.hpp"
+
 namespace Details
 {
     static Filepath GetScenePath()
@@ -122,11 +124,14 @@ void Engine::Create()
 
     scene2.Load(Details::GetScenePath());
 
+
     hybridRenderer = std::make_unique<HybridRenderer>(&scene2, camera.get(), environment.get());
     //pathTracingRenderer = std::make_unique<PathTracingRenderer>(scenePT.get(), camera.get(), environment.get());
 
     AddSystem<CameraSystem>(camera.get());
     AddSystem<UIRenderSystem>(*window);
+
+    AddSystem<PhysicsSystem>();
 
     GetSystem<UIRenderSystem>()->BindText([]() { return Details::GetCameraPositionText(*camera); });
     GetSystem<UIRenderSystem>()->BindText([]() { return Details::GetCameraDirectionText(*camera); });

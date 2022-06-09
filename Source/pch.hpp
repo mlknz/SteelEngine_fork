@@ -29,6 +29,9 @@
 
 #include <entt/entity/registry.hpp>
 
+//JPH_SUPPRESS_WARNINGS
+#include <Jolt/Jolt.h>
+
 #pragma warning(pop)
 
 #undef CreateSemaphore

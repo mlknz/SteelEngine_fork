@@ -34,6 +34,13 @@ file(GLOB IMGUI_SOURCES LIST_DIRECTORIES false
     "${PROJECT_SOURCE_DIR}/External/imgui/backends/*vulkan*.cpp"
 )
 
+#Jolt
+# Set general compiler flags for Jolt
+set(CMAKE_CXX_FLAGS "/std:c++latest /EHsc")
+
+set(PHYSICS_REPO_ROOT ${PROJECT_SOURCE_DIR}/External/JoltPhysics/)
+include(${PROJECT_SOURCE_DIR}/External/JoltPhysics/Jolt/Jolt.cmake)
+
 # sources
 set(SOURCE_DIR ${PROJECT_SOURCE_DIR}/Source)
 file(GLOB_RECURSE SOURCES LIST_DIRECTORIES false
@@ -89,11 +96,11 @@ target_include_directories(${PROJECT_NAME} PRIVATE
 )
 
 target_link_libraries(${PROJECT_NAME} general
-    ${Vulkan_LIBRARIES} glfw glslang SPIRV tetgen
+    ${Vulkan_LIBRARIES} glfw glslang SPIRV tetgen Jolt
 )
 
 file(GLOB PRECOMPILE_HEADERS "Source/pch.hpp")
 target_precompile_headers(${PROJECT_NAME} PRIVATE ${PRECOMPILE_HEADERS})
 
 # Setup
-execute_process(COMMAND ${Python_EXECUTABLE} Setup.py ${PROJECT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${MSVC})
+execute_process(COMMAND ${Python_EXECUTABLE}  ${PROJECT_SOURCE_DIR}/Setup.py ${PROJECT_SOURCE_DIR} ${CMAKE_CURRENT_BINARY_DIR} ${MSVC})

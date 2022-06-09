@@ -35,3 +35,6 @@
 [submodule "External/entt"]
 	path = External/entt
 	url = https://github.com/skypjack/entt
+[submodule "External/JoltPhysics"]
+	path = External/JoltPhysics
+	url = https://github.com/jrouwe/JoltPhysics.git
