@@ -1,0 +1,194 @@
+{
+    "asset" : {
+        "generator" : "Khronos glTF Blender I/O v3.2.40",
+        "version" : "2.0"
+    },
+    "scene" : 0,
+    "scenes" : [
+        {
+            "name" : "Scene",
+            "nodes" : [
+                4
+            ]
+        }
+    ],
+    "nodes" : [
+        {
+            "mesh" : 0,
+            "name" : "Plane.015_Material.003_0"
+        },
+        {
+            "children" : [
+                0
+            ],
+            "name" : "Plane.015"
+        },
+        {
+            "children" : [
+                1
+            ],
+            "name" : "RootNode"
+        },
+        {
+            "children" : [
+                2
+            ],
+            "name" : "fcbda76324884597b80b5a5e0b247115.fbx"
+        },
+        {
+            "children" : [
+                3
+            ],
+            "extras" : {
+                "PhysicsType" : "Dynamic"
+            },
+            "name" : "Sketchfab_model"
+        }
+    ],
+    "materials" : [
+        {
+            "doubleSided" : true,
+            "name" : "Material.003",
+            "normalTexture" : {
+                "index" : 0
+            },
+            "pbrMetallicRoughness" : {
+                "baseColorTexture" : {
+                    "index" : 1
+                },
+                "metallicRoughnessTexture" : {
+                    "index" : 2
+                }
+            }
+        }
+    ],
+    "meshes" : [
+        {
+            "name" : "Plane.015_Material.003_0.001",
+            "primitives" : [
+                {
+                    "attributes" : {
+                        "POSITION" : 0,
+                        "NORMAL" : 1,
+                        "TANGENT" : 2,
+                        "TEXCOORD_0" : 3
+                    },
+                    "indices" : 4,
+                    "material" : 0
+                }
+            ]
+        }
+    ],
+    "textures" : [
+        {
+            "sampler" : 0,
+            "source" : 0
+        },
+        {
+            "sampler" : 0,
+            "source" : 1
+        },
+        {
+            "sampler" : 0,
+            "source" : 2
+        }
+    ],
+    "images" : [
+        {
+            "mimeType" : "image/png",
+            "name" : "Material_003_normal",
+            "uri" : "Material_003_normal.png"
+        },
+        {
+            "mimeType" : "image/png",
+            "name" : "Material_003_baseColor",
+            "uri" : "Material_003_baseColor.png"
+        },
+        {
+            "mimeType" : "image/png",
+            "name" : "Material_003_metallicRoughness",
+            "uri" : "Material_003_metallicRoughness.png"
+        }
+    ],
+    "accessors" : [
+        {
+            "bufferView" : 0,
+            "componentType" : 5126,
+            "count" : 13886,
+            "max" : [
+                1.5000572204589844,
+                1.5619179010391235,
+                0.9999998211860657
+            ],
+            "min" : [
+                -1.5074204206466675,
+                -3.501772880554199e-07,
+                -1.0027531385421753
+            ],
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 1,
+            "componentType" : 5126,
+            "count" : 13886,
+            "type" : "VEC3"
+        },
+        {
+            "bufferView" : 2,
+            "componentType" : 5126,
+            "count" : 13886,
+            "type" : "VEC4"
+        },
+        {
+            "bufferView" : 3,
+            "componentType" : 5126,
+            "count" : 13886,
+            "type" : "VEC2"
+        },
+        {
+            "bufferView" : 4,
+            "componentType" : 5123,
+            "count" : 17724,
+            "type" : "SCALAR"
+        }
+    ],
+    "bufferViews" : [
+        {
+            "buffer" : 0,
+            "byteLength" : 166632,
+            "byteOffset" : 0
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 166632,
+            "byteOffset" : 166632
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 222176,
+            "byteOffset" : 333264
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 111088,
+            "byteOffset" : 555440
+        },
+        {
+            "buffer" : 0,
+            "byteLength" : 35448,
+            "byteOffset" : 666528
+        }
+    ],
+    "samplers" : [
+        {
+            "magFilter" : 9729,
+            "minFilter" : 9987
+        }
+    ],
+    "buffers" : [
+        {
+            "byteLength" : 701976,
+            "uri" : "crate_dynamic.bin"
+        }
+    ]
+}
