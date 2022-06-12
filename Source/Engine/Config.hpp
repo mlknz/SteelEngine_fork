@@ -13,15 +13,13 @@ namespace Config
 
     constexpr Window::Mode kWindowMode = Window::Mode::eWindowed;
 
-    constexpr bool kVSyncEnabled = false;
+    constexpr bool kVSyncEnabled = true;
 
     const Filepath kShadersDirectory("~/Shaders/");
 
-    //const Filepath kDefaultScenePath("~/Assets/Scenes/Porsche/Porsche.gltf");
-    //const Filepath kDefaultScenePath("~/Assets/Scenes/SanMiguel/SanMiguel.gltf");
-    //const Filepath kDefaultScenePath("~/Assets/Scenes/ModernSponza/ModernSponza.gltf");
-    const Filepath kDefaultScenePath("~/Assets/Scenes/DamagedHelmet/DamagedHelmet.gltf");
-    //const Filepath kDefaultScenePath("~/Assets/Scenes/CornellBox/CornellBox.gltf");
+    //const Filepath kDefaultScenePath("~/Assets/Scenes/DamagedHelmet/DamagedHelmet.gltf");
+    const Filepath kDefaultScenePath("~/Assets/Scenes/crate/crate_dynamic.gltf");
+    //const Filepath kDefaultScenePath("~/Assets/Scenes/car/scene.gltf");
 
     //const Filepath kDefaultEnvironmentPath("~/Assets/Environments/Dusk.hdr");
     const Filepath kDefaultEnvironmentPath("~/Assets/space_panorama_2k.hdr");

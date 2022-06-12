@@ -9,6 +9,8 @@ struct TransformComponent
     TransformComponent* parent = nullptr;
     glm::mat4 localTransform;
     glm::mat4 worldTransform;
+
+    std::vector<TransformComponent*> children;
 };
 
 struct CameraComponent

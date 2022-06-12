@@ -9,7 +9,9 @@
 #include <Jolt/Physics/Collision/Shape/SphereShape.h>
 #include <Jolt/Physics/Body/BodyCreationSettings.h>
 
+#include "Engine2/Components2.hpp"
 #include "Gameplay/Physics/PhysicsConstants.hpp"
+#include "Gameplay/Physics/Components/ZaryaPhysicsBodyComponent.hpp"
 #include "Utils/Assert.hpp"
 
 namespace SPhysicsSystem
@@ -69,7 +71,8 @@ namespace SPhysicsSystem
     }
 }
 
-PhysicsSystem::PhysicsSystem() :
+PhysicsSystem::PhysicsSystem(Scene2* scene_) :
+    scene(scene_),
     tempAllocator(SPhysicsSystem::TempAllocatorSize),
     jobSystem(JPH::cMaxPhysicsJobs, JPH::cMaxPhysicsBarriers, std::thread::hardware_concurrency() - 1)
 {
@@ -85,11 +88,14 @@ PhysicsSystem::PhysicsSystem() :
     physicsSystem.SetBodyActivationListener(&bodyActivationListener);
     physicsSystem.SetContactListener(&contactListener);
 
+    scene->on_construct<ZaryaPhysicsBody>().connect<&PhysicsSystem::ConstructPhysicsBody>(this);
+
     AddFloorBody();
 }
 
 PhysicsSystem::~PhysicsSystem()
 {
+    scene->on_construct<ZaryaPhysicsBody>().disconnect<&PhysicsSystem::ConstructPhysicsBody>(this);
     Cleanup();
 }
 
@@ -101,34 +107,81 @@ void PhysicsSystem::Cleanup()
         JPH::Factory::sInstance = nullptr;
     }
 
-    // Remove and destroy the floor
+    // Remove body from the physics system. Note that the body itself keeps all of its state and can be re-added at any time.
     //body_interface.RemoveBody(floor->GetID());
+    // Destroy body. After this the body ID is no longer valid.
     //body_interface.DestroyBody(floor->GetID());
 }
 
-void PhysicsSystem::Process(float /*dt*/)
+void PhysicsSystem::Process(float deltaSeconds)
 {
-    // TODO: We simulate the physics world in discrete time steps. 60 Hz is a good rate to update the physics system.
-    const float cDeltaTime = 1.0f / 60.0f;
+    timeSinceUpdate += deltaSeconds;
 
-    // body_interface.IsActive(sphere_id)
-    // 
-    //// Output current position and velocity of the sphere
-    //Vec3 position = body_interface.GetCenterOfMassPosition(sphere_id);
-    //Vec3 velocity = body_interface.GetLinearVelocity(sphere_id);
-    //std::cout << "Step " << step << ": Position = (" << position.GetX() << ", " << position.GetY() << ", " << position.GetZ() << "), Velocity = (" << velocity.GetX() << ", " << velocity.GetY() << ", " << velocity.GetZ() << ")" << endl;
+    if (timeSinceUpdate < physicsUpdateStepSeconds)
+    {
+        return;
+    }
 
+    timeSinceUpdate -= physicsUpdateStepSeconds;
 
-    // Step the world
-    physicsSystem.Update(cDeltaTime, SPhysicsSystem::CollisionStepsPerUpdate, SPhysicsSystem::IntegrationSubStepsPerUpdate, &tempAllocator, &jobSystem);
+    const float dt = physicsUpdateStepSeconds * physicsTimeSpeed;
+    physicsSystem.Update(dt, SPhysicsSystem::CollisionStepsPerUpdate, SPhysicsSystem::IntegrationSubStepsPerUpdate, &tempAllocator, &jobSystem);
+
+    JPH::BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
+    // Update visual transforms
+    auto view = scene->view<const ZaryaPhysicsBody>();
+
+    JPH::Vec3 pos;
+    JPH::Quat rot;
+    glm::quat myQuat;
+    glm::mat4 finalTransform;
+
+    for (auto entity : view)
+    {
+        const auto &zaryaPhysicsBody = view.get<const ZaryaPhysicsBody>(entity);
+        
+        if (zaryaPhysicsBody.motionType == JPH::EMotionType::Static)
+        {
+            continue;
+        }
+
+        if (!bodyInterface.IsAdded(zaryaPhysicsBody.bodyID))
+        {
+            continue;
+        }
+        
+        bodyInterface.GetPositionAndRotation(zaryaPhysicsBody.bodyID, pos, rot);
+
+        myQuat = glm::quat(rot.GetW(), rot.GetX(), rot.GetY(), rot.GetZ());
+
+        finalTransform = glm::translate(glm::identity<glm::mat4>(), glm::vec3(pos.GetX(), pos.GetY(), pos.GetZ())) * glm::mat4_cast(myQuat);
+
+        // set of patched objects can be used with checking if transform changed
+        scene->patch<TransformComponent>(entity, [&finalTransform](TransformComponent& tr) {
+            tr.localTransform = finalTransform;
+        });
+    }
 }
 
 void PhysicsSystem::OnSceneMajorChange()
 {
-    // Optional step: Before starting the physics simulation you can optimize the broad phase. This improves collision detection performance (it's pointless here because we only have 2 bodies).
+    // Optional step: Before starting the physics simulation you can optimize the broad phase. This improves collision detection performance.
     // You should definitely not call this every frame or when e.g. streaming in a new level section as it is an expensive operation.
     // Instead insert all new objects in batches instead of 1 at a time to keep the broad phase efficient.
     physicsSystem.OptimizeBroadPhase();
+}
+
+void PhysicsSystem::ConstructPhysicsBody(entt::registry& registry, entt::entity entity)
+{
+    registry.patch<ZaryaPhysicsBody>(entity, [this](ZaryaPhysicsBody& zaryaPhysicsBody) {
+        JPH::BodyInterface& bodyInterface = physicsSystem.GetBodyInterface();
+        JPH::BodyID newBodyID = bodyInterface.CreateAndAddBody(zaryaPhysicsBody.bodyCreationSettings, JPH::EActivation::Activate);
+        zaryaPhysicsBody.bodyID = newBodyID;
+        zaryaPhysicsBody.motionType = zaryaPhysicsBody.bodyCreationSettings.mMotionType;
+        zaryaPhysicsBody.isConstructed = true;
+
+        bodyInterface.SetLinearVelocity(zaryaPhysicsBody.bodyID, JPH::Vec3(0.0f, 5.0f, 0.0f));
+    });
 }
 
 void PhysicsSystem::AddFloorBody()
@@ -146,25 +199,13 @@ void PhysicsSystem::AddFloorBody()
     JPH::ShapeSettings::ShapeResult floor_shape_result = floor_shape_settings.Create();
     JPH::ShapeRefC floor_shape = floor_shape_result.Get(); // We don't expect an error here, but you can check floor_shape_result for HasError() / GetError()
 
+    JPH::Quat floorRot = JPH::Quat::sRotation(JPH::Vec3Arg(0.0f, 0.0f, 1.0f), 0.4f); //JPH::Quat::sIdentity()
     // Create the settings for the body itself. Note that here you can also set other properties like the restitution / friction.
-    JPH::BodyCreationSettings floor_settings(floor_shape, JPH::Vec3(0.0f, -1.0f, 0.0f), JPH::Quat::sIdentity(), JPH::EMotionType::Static, PhysicsLayers::NON_MOVING);
+    JPH::BodyCreationSettings floor_settings(floor_shape, JPH::Vec3(0.0f, -2.0f, 0.0f), floorRot, JPH::EMotionType::Static, PhysicsLayers::NON_MOVING);
 
     // Create the actual rigid body
     JPH::Body* floor = body_interface.CreateBody(floor_settings); // Note that if we run out of bodies this can return nullptr
 
     // Add it to the world
     body_interface.AddBody(floor->GetID(), JPH::EActivation::DontActivate);
-
-    //BodyCreationSettings sphere_settings(new SphereShape(0.5f), Vec3(0.0f, 2.0f, 0.0f), Quat::sIdentity(), EMotionType::Dynamic, Layers::MOVING);
-    //BodyID sphere_id = body_interface.CreateAndAddBody(sphere_settings, EActivation::Activate);
-
-    //// Now you can interact with the dynamic body, in this case we're going to give it a velocity.
-    //// (note that if we had used CreateBody then we could have set the velocity straight on the body before adding it to the physics system)
-    //body_interface.SetLinearVelocity(sphere_id, Vec3(0.0f, -5.0f, 0.0f));
-
-    // Remove the sphere from the physics system. Note that the sphere itself keeps all of its state and can be re-added at any time.
-    // body_interface.RemoveBody(sphere_id);
-
-    // Destroy the sphere. After this the sphere ID is no longer valid.
-    // body_interface.DestroyBody(sphere_id);
 }

@@ -40,3 +40,5 @@
 #pragma warning(push)
 #pragma warning(disable: 4702)
 #pragma warning(disable: 4505)
+#pragma warning(disable: 4100)
+#pragma warning(disable: 4189)

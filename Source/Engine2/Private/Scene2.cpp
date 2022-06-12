@@ -9,6 +9,7 @@
 #include "Engine2/RenderComponent.hpp"
 
 #include "Gameplay/Physics/Components/ZaryaPhysicsBodyComponent.hpp"
+#include "Gameplay/Physics/PhysicsUtils.hpp"
 
 #include "Utils/Assert.hpp"
 #include "Utils/Helpers.hpp"
@@ -262,21 +263,23 @@ namespace Details
         }
     }
 
-    using NodeFunctor = std::function<void(const tinygltf::Node&, entt::entity)>;
+    using NodeFunctor = std::function<entt::entity(const tinygltf::Node&, entt::entity)>;
 
     static void EnumerateNodes(const tinygltf::Model& model, const NodeFunctor& functor)
     {
-        const NodeFunctor enumerator = [&](const tinygltf::Node& node, entt::entity parent)
+        using Enumerator = std::function<void(const tinygltf::Node&, entt::entity)>;
+
+        const Enumerator enumerator = [&](const tinygltf::Node& node, entt::entity parent)
+        {
+            const entt::entity entity = functor(node, parent);
+
+            for (const auto& childIndex : node.children)
             {
-                functor(node, parent);
+                const tinygltf::Node& child = model.nodes[childIndex];
 
-                for (const auto& childIndex : node.children)
-                {
-                    const tinygltf::Node& child = model.nodes[childIndex];
-
-                    enumerator(child, parent);
-                }
-            };
+                enumerator(child, entity);
+            }
+        };
 
         for (const auto& scene : model.scenes)
         {
@@ -392,10 +395,11 @@ namespace Details
         }
 
         DataView<glm::vec3> tangents;
-        if (primitive.attributes.contains("TANGENT"))
+        if (primitive.attributes.contains("TANGENT") &&false)
         {
             const tinygltf::Accessor& tangentsAccessor = model.accessors[primitive.attributes.at("TANGENT")];
 
+            // tangent can be vec4 for bitangent = cross(normal, tangent.xyz) * tangent.w
             Assert(tangentsAccessor.type == TINYGLTF_TYPE_VEC3);
             Assert(tangentsAccessor.componentType == TINYGLTF_COMPONENT_TYPE_FLOAT);
             tangents = Utils::GetAccessorDataView<glm::vec3>(model, tangentsAccessor);
@@ -625,11 +629,13 @@ private:
                     scene.emplace<EnvironmentComponent>(entity);
                 }
 
-                const bool needsPhysicsBody = true;
+                const bool needsPhysicsBody = node.extras.Has("PhysicsType");
                 if (needsPhysicsBody)
                 {
                     AddPhysicsBodyComponent(entity, node);
                 }
+
+                return entity;
             });
     }
 
@@ -639,7 +645,7 @@ private:
 
         if (parent != entt::null)
         {
-            tc.parent = &scene.get<TransformComponent>(entity);
+            tc.parent = &scene.get<TransformComponent>(parent);
         }
 
         tc.localTransform = Details::RetrieveTransform(node);
@@ -673,8 +679,9 @@ private:
 
     void AddPhysicsBodyComponent(entt::entity entity, const tinygltf::Node& /*node*/) const
     {
-        ZaryaPhysicsBody& physicsBody = scene.emplace<ZaryaPhysicsBody>(entity);
-        physicsBody.flag = true;
+        JPH::BodyCreationSettings&& bodyCreationSettings = ZaryaPhysics::ParsePhysicsBodyCreateInfo();
+        // todo: use tc.worldTransform
+        ZaryaPhysicsBody& physicsBody = scene.emplace<ZaryaPhysicsBody>(entity, std::move(bodyCreationSettings));
     }
 };
 

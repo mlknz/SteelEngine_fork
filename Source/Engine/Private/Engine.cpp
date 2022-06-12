@@ -15,6 +15,7 @@
 #include "Engine/Render/Vulkan/VulkanContext.hpp"
 
 #include "Gameplay/Physics/PhysicsSystem.hpp"
+#include "Gameplay/TransformUpdateSystem.hpp"
 
 namespace Details
 {
@@ -122,6 +123,8 @@ void Engine::Create()
     environment = std::make_unique<Environment>(Details::GetEnvironmentPath());
     camera = std::make_unique<Camera>(Config::DefaultCamera::kLocation, Config::DefaultCamera::kDescription);
 
+    AddSystem<PhysicsSystem>(&scene2); // before loading nodes with Physics
+
     scene2.Load(Details::GetScenePath());
 
 
@@ -130,8 +133,7 @@ void Engine::Create()
 
     AddSystem<CameraSystem>(camera.get());
     AddSystem<UIRenderSystem>(*window);
-
-    AddSystem<PhysicsSystem>();
+    AddSystem<TransformUpdateSystem>(&scene2);
 
     GetSystem<UIRenderSystem>()->BindText([]() { return Details::GetCameraPositionText(*camera); });
     GetSystem<UIRenderSystem>()->BindText([]() { return Details::GetCameraDirectionText(*camera); });
